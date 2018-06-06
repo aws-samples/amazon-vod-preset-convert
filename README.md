@@ -13,7 +13,7 @@ To verify if Python is installed and what version you have, run the following co
 ```
 python –version
 ```
-Please make sure that the Python version is a variation of **2.7.x**. If this condition is met, you may skip the next section ‘Installing Python’
+Please make sure that the Python version is a variation of **2.7.x**. 
 
 #### Installing AWS CLI
 
@@ -79,4 +79,6 @@ Error examples:
 
 When using the -f (or --save) flag this will save two files. One contains the video and audio parameters the other contains a Thumbnail preset. When this flag is excluded, the output of the script will just print on the terminal screen.
 
+## License
 
+This library is licensed under the Apache 2.0 License.
