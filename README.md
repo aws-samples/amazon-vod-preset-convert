@@ -13,7 +13,7 @@ To verify if Python is installed and what version you have, run the following co
 ```
 python –version
 ```
-Please make sure that the Python version is a variation of **2.7.x**. 
+Please make sure that the Python version is a variation of **2.7.x**. If this condition is met, you may skip the next section ‘Installing Python’
 
 #### Installing AWS CLI
 
