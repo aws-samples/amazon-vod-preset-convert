@@ -8,6 +8,10 @@
 #   - Corrected interlaced mode 
 #   - Corrected Codec Level logic
 #
+# 2.2
+#    -Corrected Auto logic for video/frame capture resolution, sample rate, and bitate
+#    -Validation for audio only no MP4 only outputs
+#
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing,
@@ -214,8 +218,16 @@ def translate_audio(ets_preset_payload,s_audio):
                  'RawFormat': "NONE",
                  'Specification': "MPEG4",
                  'RateControlMode': 'CBR',
-                 'SampleRate': int(emf_sample)
         }}}
+        
+
+        if emf_sample != 'auto':
+             AudioSettings['CodecSettings']['AacSettings'].update({"SampleRate": int(emf_sample)})
+        else:
+ 	     warning = "Auto in setting Sample Rate not supported...defaulting to  48kHz\n"
+             AudioSettings['CodecSettings']['AacSettings'].update({"SampleRate": int(48000)})
+
+
         if args.verbose == True:
             print '==================VERBOSE LOGGING=================='
             print '==================AUDIO SETTINGS AAC=================='
@@ -248,8 +260,13 @@ def translate_audio(ets_preset_payload,s_audio):
                     'WavSettings': {
                     'BitDepth': int(emf_bitdepth),
                     'Channels': int(emf_channels),
-                    'SampleRate': int(emf_sample)
                     }}}
+
+        if emf_sample != 'auto':
+                AudioSettings['CodecSettings']['WavSettings'].update({"SampleRate": int(emf_sample)})
+        else:
+                warning = "Auto in setting Sample Rate not supported...defaulting to 44.1kHz\n"
+                AudioSettings['CodecSettings']['WavSettings'].update({"SampleRate": int(44100)})
         if args.verbose == True:
             print '==================VERBOSE LOGGING=================='
             print '==================AUDIO SETTINGS WAV=================='
@@ -282,13 +299,17 @@ def translate_audio(ets_preset_payload,s_audio):
                     'Mp2Settings': {
                     'Bitrate': int(emf_bitrate),
                     'Channels': int(emf_channels),
-                    'SampleRate': int(emf_sample)
                     }}}
         if args.verbose == True:
             print '==================VERBOSE LOGGING=================='
             print '==================AUDIO SETTINGS MP2=================='
             print json.dumps(AudioSettings)
    
+        if emf_sample != 'auto':
+                AudioSettings['CodecSettings']['Mp2Settings'].update({"SampleRate": int(emf_sample)})
+        else:
+                warning = "Auto in setting Sample Rate not supported...defaulting to 48000kHz\n"
+                AudioSettings['CodecSettings']['Mp2Settings'].update({"SampleRate": int(48000)})
 
     AudioDescription = {}
     AudioDesc1 = {}
@@ -361,6 +382,10 @@ def translate_video(ets_preset_payload, s_video):
 	    emf_codec_level = "AUTO"
             print "WARNING: Item not found defaulting to auto, please change based off bitrate and resolution \n"
     
+    if (ets_preset_payload['Preset']['Video']['MaxWidth'] == 'auto') or (ets_preset_payload['Preset']['Video']['MaxHeight'] == 'auto'):
+        emf_codec_level = "AUTO"
+        print "WARNING: Since resolution is not defined setting Profile Level to AUTO"
+    
     ## Interlace Mode Logic
 
     if ets_preset_payload['Preset']['Video']['CodecOptions']['InterlacedMode'] == '"Progressive"':
@@ -427,6 +452,7 @@ def translate_video(ets_preset_payload, s_video):
                     'Telecine': 'NONE',
                     'TemporalAdaptiveQuantization': "ENABLED"},    
                      }
+       
 
     elif s_video == '"mpeg2"':
         xSettings = 'Mpeg2Settings'
@@ -451,13 +477,12 @@ def translate_video(ets_preset_payload, s_video):
                     'Telecine': 'NONE',
                     'TemporalAdaptiveQuantization': "ENABLED"}
                   }
+
     
     VideoDescription = {}
     
     VideoDescription ={
     "VideoDescription": {
-            "Width": int(ets_preset_payload['Preset']['Video']['MaxWidth']),
-            "Height": int(ets_preset_payload['Preset']['Video']['MaxHeight']),
             "TimecodeInsertion": "DISABLED" ,
             "AntiAlias": "ENABLED",
             "Sharpness": 100,
@@ -480,7 +505,12 @@ def translate_video(ets_preset_payload, s_video):
                 }}}
         VideoDescription['VideoDescription'].update(VideoPreProcessors)
    
+    ##Handle Auto Resolution
+    if ets_preset_payload['Preset']['Video']['MaxWidth'] != 'auto':
+        VideoDescription['VideoDescription'].update({"Width" : ets_preset_payload['Preset']['Video']['MaxWidth']})
 
+    if ets_preset_payload['Preset']['Video']['MaxHeight'] != 'auto':
+        VideoDescription['VideoDescription'].update({"Height" : ets_preset_payload['Preset']['Video']['MaxHeight']})
 
     ########################################
     #                                      #
@@ -573,26 +603,22 @@ def translate_video(ets_preset_payload, s_video):
                 VideoSettings[xSettings].update({'MaxBitrate': emf_max_bitrate})
     else:
         emf_control_mode = 'CBR'
-        VideoSettings[xSettings].update({'RateControlMode': emf_control_mode})
-        emf_bitrate_temp = int(ets_preset_payload['Preset']['Video']['BitRate'])
+        if ets_preset_payload['Preset']['Video']['BitRate']  != 'auto':
+            VideoSettings[xSettings].update({'RateControlMode': emf_control_mode})
+            emf_bitrate_temp = int(ets_preset_payload['Preset']['Video']['BitRate'])
+	    ##convert kilobits to bits
+            emf_bitrate = emf_bitrate_temp * 1000   
 	
-	##convert kilobits to bits
-        emf_bitrate = emf_bitrate_temp * 1000   
 	
-	
-	if emf_bitrate < 1000:
-		print "WARNING: Bitrate must be created that 1000, increase to 1000\n"
-		emf_bitrate = 1000
-
+	    if emf_bitrate < 1000:
+		    print "WARNING: Bitrate must be greater than 1000, increase to 1000\n"
+		    emf_bitrate = 1000
+        else:
+             emf_bitrate = 5000000
+             VideoSettings[xSettings].update({'RateControlMode': emf_control_mode})
         VideoSettings[xSettings].update({'Bitrate': emf_bitrate})
 
 
-    if 'BufferSize' in videodump:
-        emf_bufsize = int(ets_preset_payload['Preset']['Video']['CodecOptions']['BufferSize'])
-        VideoSettings[xSettings].update({'HrdBufferSize': emf_bufsize})
-    else:
-        emf_bufsize = int(emf_bitrate) * 2
-        VideoSettings[xSettings].update({'HrdBufferSize': emf_bufsize})
     
         
     VideoDescription['VideoDescription'].update({'CodecSettings': VideoSettings})
@@ -606,7 +632,11 @@ def translate_video(ets_preset_payload, s_video):
 
 
 def translate_container(emf_AudioDescription,emf_VideoDescription,s_container,emf_outputgroup,s_video):
-	if emf_outputgroup == 'apple' and s_container == '"ts"':
+	if emf_VideoDescription == 'none' and s_container != '"mp4"':
+           print "Audio only is supported in MP4 contianers\n"
+	   exit();
+
+        if emf_outputgroup == 'apple' and s_container == '"ts"':
         	OutputGroupSettings = {}
         	OutputGroupSettings ={
         	"Settings":{
@@ -746,9 +776,7 @@ def translate_thumbnails(ets_preset_payload, etsid):
   		"Name": etsid + ' Thumbnails',
   		"Settings": {
     		"VideoDescription": {
-      		"Width": int(ets_preset_payload['Preset']['Thumbnails']['MaxWidth']),
       		"ScalingBehavior": "DEFAULT",
-      		"Height": int(ets_preset_payload['Preset']['Thumbnails']['MaxHeight']),
       		"TimecodeInsertion": "DISABLED",
       		"AntiAlias": "ENABLED",
       		"Sharpness": 50,
@@ -767,6 +795,13 @@ def translate_thumbnails(ets_preset_payload, etsid):
       		"ColorMetadata": "INSERT"
     		},
     		"ContainerSettings": {"Container": "RAW"}}}
+
+	##Handle Auto Resolution
+	if ets_preset_payload['Preset']['Video']['MaxWidth'] !=  'auto':
+		emf_preset_thumbnail['Settings']['VideoDescription'].update({"Width" : ets_preset_payload['Preset']['Thumbnails']['MaxWidth']})
+
+	if ets_preset_payload['Preset']['Video']['MaxHeight'] !=  'auto':
+		emf_preset_thumbnail['Settings']['VideoDescription'].update({"Height" : ets_preset_payload['Preset']['Thumbnails']['MaxHeight']})	
 	
 	return emf_preset_thumbnail 
 
@@ -798,7 +833,6 @@ if s_audio is not 'none':
 	emf_AudioDesciption = translate_audio(ets_preset_payload,s_audio)
 else:
 	emf_AudioDesciption = 'none'
-
 
 emf_PresetSettings = translate_container(emf_AudioDesciption,emf_VideoDescription,s_container,emf_outputgroup,s_video)
 
