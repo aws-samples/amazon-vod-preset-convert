@@ -10,8 +10,13 @@
 #
 # 2.2
 #    -Corrected Auto logic for video/frame capture resolution, sample rate, and bitate
-#    -Validation for audio only no MP4 only outputs
-#
+#    -Validation for audio only on MP4 only outputs
+# 
+# 2.3
+#    -Corrected casting logic
+#    -added fMP4 support for dash and smooth outputs
+#    -added more validation around container conversion types
+#    -updated supported AAC range 
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing,
@@ -54,7 +59,7 @@ if (args.interactive==False and (args.region==None or args.etsid==None or args.e
     exit()
 
 outputtype=['file','apple','dash','smooth']
-unsupport_container = ['"fmp4"','"webm"','"mp3"','"ogg"','"flac"','"flv"','"gif"']
+unsupport_container = ['"webm"','"mp3"','"ogg"','"flac"','"flv"','"gif"']
 unsupport_video_codec = ['"vp8"','"vp9"','"gif"']
 unsupport_audio_codec = ['"vorbis"','"flac"','"wav"']
 
@@ -182,7 +187,7 @@ def translate_audio(ets_preset_payload,s_audio):
     ###AAC Type
     if s_audio == '"AAC"':
         etsaudioprofile = json.dumps(ets_preset_payload['Preset']['Audio']['CodecOptions']['Profile'])
-        aac_range=[96,112,128,192,224,256,288,320,384,448,512,576]
+        aac_range=[64,84,96,112,128,192,224,256,288,320,384,448,512,576]
         if etsaudioprofile == '"AAC-LC"':
             audio_profile = 'LC'
         elif etsaudioprofile == '"HE-AAC"':
@@ -388,17 +393,17 @@ def translate_video(ets_preset_payload, s_video):
     
     ## Interlace Mode Logic
 
-    if ets_preset_payload['Preset']['Video']['CodecOptions']['InterlacedMode'] == '"Progressive"':
+    if ets_preset_payload['Preset']['Video']['CodecOptions']['InterlacedMode'] == 'Progressive':
         emf_interlace_mode = 'PROGRESSIVE'
-    elif ets_preset_payload['Preset']['Video']['CodecOptions']['InterlacedMode'] == '"TopFirst"':
+    elif ets_preset_payload['Preset']['Video']['CodecOptions']['InterlacedMode'] == 'TopFirst':
         emf_interlace_mode = 'TOP_FIELD'
-    elif ets_preset_payload['Preset']['Video']['CodecOptions']['InterlacedMode'] == '"BottomFirst"':
+    elif ets_preset_payload['Preset']['Video']['CodecOptions']['InterlacedMode'] == 'BottomFirst':
         emf_interlace_mode = 'BOTTOM_FIELD'
-    elif ets_preset_payload['Preset']['Video']['CodecOptions']['InterlacedMode'] == '"Auto"':
+    elif ets_preset_payload['Preset']['Video']['CodecOptions']['InterlacedMode'] == 'Auto':
         emf_interlace_mode = 'PROGRESSIVE'
 	print "WARNING: Auto interlaced mode not supported in MediaConvert, setting to progressive";
     else:
-        emf_interlace_mode = 'FOLLOW_BOTTOM_FIELD'
+        emf_interlace_mode = 'PROGRESSIVE'
     
     ###Strech output###
     if ets_preset_payload['Preset']['Video']['SizingPolicy'] == '"Stretch"':
@@ -507,10 +512,10 @@ def translate_video(ets_preset_payload, s_video):
    
     ##Handle Auto Resolution
     if ets_preset_payload['Preset']['Video']['MaxWidth'] != 'auto':
-        VideoDescription['VideoDescription'].update({"Width" : ets_preset_payload['Preset']['Video']['MaxWidth']})
+        VideoDescription['VideoDescription'].update({"Width" : int(ets_preset_payload['Preset']['Video']['MaxWidth'])})
 
     if ets_preset_payload['Preset']['Video']['MaxHeight'] != 'auto':
-        VideoDescription['VideoDescription'].update({"Height" : ets_preset_payload['Preset']['Video']['MaxHeight']})
+        VideoDescription['VideoDescription'].update({"Height" : int(ets_preset_payload['Preset']['Video']['MaxHeight'])})
 
     ########################################
     #                                      #
@@ -633,10 +638,10 @@ def translate_video(ets_preset_payload, s_video):
 
 def translate_container(emf_AudioDescription,emf_VideoDescription,s_container,emf_outputgroup,s_video):
 	if emf_VideoDescription == 'none' and s_container != '"mp4"':
-           print "Audio only is supported in MP4 contianers\n"
-	   exit();
+			print "Audio only is supported in MP4 contianers\n"
+			exit();
 
-        if emf_outputgroup == 'apple' and s_container == '"ts"':
+	if emf_outputgroup == 'apple' and s_container == '"ts"':
         	OutputGroupSettings = {}
         	OutputGroupSettings ={
         	"Settings":{
@@ -655,28 +660,34 @@ def translate_container(emf_AudioDescription,emf_VideoDescription,s_container,em
         	"AudioPids": [482,483,484,485,486,487,488,489,490,491,492]
         	}}}}
 		if emf_VideoDescription is not 'none':
-        		OutputGroupSettings['Settings'].update(emf_VideoDescription)
-        	if emf_AudioDescription is not 'none':
+			OutputGroupSettings['Settings'].update(emf_VideoDescription)
+		if emf_AudioDescription is not 'none':
 			OutputGroupSettings['Settings'].update(emf_AudioDescription)
-        	return OutputGroupSettings         
- 	elif emf_outputgroup == 'apple' and s_container == '"mp4"':
-        	print "Currently MediaConvert only supports HLS with transport stream containers"
-        	exit()
+		return OutputGroupSettings         
+	elif emf_outputgroup == 'apple' and s_container == '"mp4"':
+		print "This tool only supports converting Non-CMAF HLS presets"
+		exit()
+	elif emf_outputgroup == 'apple' and s_container is not '"ts"':
+		print "ETS Preset must be in a ts container"
+		exit()
     
-	if emf_outputgroup == 'dash' and s_codec == 'H.264':
+	if emf_outputgroup == 'dash' and s_video == '"H.264"' and s_container == '"fmp4"':
 		OutputGroupSettings = {}
-        	OutputGroupSettings ={        
+		OutputGroupSettings ={        
 		"Settings":{
 		"ContainerSettings": {
 		"Container": "mpd"
-        	}}}
+		}}}
 		if emf_VideoDescription is not 'none':	
-        		OutputGroupSettings['Settings'].update(emf_VideoDescription)
-        	if emf_AudioDescription is not 'none':
+			OutputGroupSettings['Settings'].update(emf_VideoDescription)
+		if emf_AudioDescription is not 'none':
 			OutputGroupSettings['Settings'].update(emf_AudioDescription)
-        	return OutputGroupSettings
-    
-	if emf_outputgroup == 'smooth' and s_codec == 'H.264':
+		return OutputGroupSettings
+	elif emf_outputgroup == 'dash' and s_container is not '"fmp4"':
+			print "ETS Preset must have container set to fmp4 for DASH conversion"
+			exit()
+  
+	if emf_outputgroup == 'smooth' and s_video == '"H.264"' and s_container == '"fmp4"':
 		OutputGroupSettings = {}
 		OutputGroupSettings ={
 		"Settings":{
@@ -684,10 +695,16 @@ def translate_container(emf_AudioDescription,emf_VideoDescription,s_container,em
 		"Container": "ismv"
 		}}}
 		if emf_VideoDescription is not 'none':
-        		OutputGroupSettings['Settings'].update(emf_VideoDescription)
-        	if emf_AudioDescription is not 'none':
+			OutputGroupSettings['Settings'].update(emf_VideoDescription)
+		if emf_AudioDescription is not 'none':
 			OutputGroupSettings['Settings'].update(emf_AudioDescription)
-        	return OutputGroupSettings
+		return OutputGroupSettings
+	elif emf_outputgroup == 'smooth' and s_container is not '"fmp4"':
+		print "ETS Preset must have contianer set to fmp4 for smooth conversion"
+		exit()
+
+
+
 
 	if emf_outputgroup == 'file':
 		if s_container == '"ts"' or s_container == '"mpg"':
