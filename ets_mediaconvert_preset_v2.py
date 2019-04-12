@@ -54,7 +54,7 @@ parser.add_argument('-f', '--save', action='store_true', help='Save presets to f
 args = parser.parse_args()
 
 ##Print help if no args
-if (args.interactive==False and (args.region==None or args.etsid==None or args.etsid==None or args.outputtype==None)):
+if (args.interactive==False and (args.region==None or args.etsid==None or args.outputtype==None)):
     parser.print_help()
     exit()
 
@@ -90,7 +90,7 @@ def validation_preset():
             try:
                etspresetid = args.etsid.lower()
                read_preset_result = etsclient.read_preset(etspresetid)
-               return read_preset_result
+               return etspresetid, read_preset_result
             except Exception as e:
                 print e
                 exit()
@@ -100,7 +100,7 @@ def validation_preset():
             presetid = raw_input("Preset ID: ").lower()
             try:
                read_preset_result = etsclient.read_preset(presetid)
-               return read_preset_result
+               return presetid, read_preset_result
             except Exception as e:
                 print e
                 print "Please enter a correct preset id"
@@ -822,27 +822,18 @@ def translate_thumbnails(ets_preset_payload, etsid):
 	
 	return emf_preset_thumbnail 
 
-##Interatvie Mode##                
-if args.interactive==True:
-    tregion = validation_region()
-    etsclient = boto.elastictranscoder.connect_to_region(tregion)
-    ets_preset_payload = validation_preset()
-    emf_outputgroup = validate_output(outputtype)
-else:
-    tregion = validation_region()
-    etsclient = boto.elastictranscoder.connect_to_region(tregion)
-    ets_preset_payload = validation_preset()
-    emf_outputgroup = validate_output(outputtype)
+tregion = validation_region()
+etsclient = boto.elastictranscoder.connect_to_region(tregion)
+etsid, ets_preset_payload = validation_preset()
+emf_outputgroup = validate_output(outputtype)
 
 s_container = validate_container(ets_preset_payload, unsupport_container)
 s_video = validate_video(ets_preset_payload, unsupport_video_codec)
 s_audio = validate_audio(ets_preset_payload, unsupport_audio_codec)
 
-
-
 if s_video is not 'none':
 	emf_VideoDescription = translate_video(ets_preset_payload, s_video)
-	emf_PresetThumbnails = translate_thumbnails(ets_preset_payload, args.etsid)
+	emf_PresetThumbnails = translate_thumbnails(ets_preset_payload, etsid)
 else:
 	emf_VideoDescription = 'none'
 
@@ -875,20 +866,20 @@ if args.verbose == True:
 	print '====================THUMBNAILS====================='
 	if args.save == True:
 		print '==================SAVING FILES========================='
-		file = open(args.etsid+".json", "w")
+		file = open(etsid+".json", "w")
 		file.write(json.dumps(emf_PresetSettings,indent=4, sort_keys=False))
 		file.close()
 	if s_video is not 'none':
     			print json.dumps(emf_PresetThumbnails,indent=4, sort_keys=False)
 			if args.save == True:
-				file = open(args.etsid + "_Thumbnail.json", "w")
+				file = open(etsid + "_Thumbnail.json", "w")
                 		file.write(json.dumps(emf_PresetThumbnails,indent=4, sort_keys=False))
                 		file.close()
 else: 
     	print json.dumps(emf_PresetSettings,indent=4, sort_keys=True)
 	if args.save == True:
                 print '==================SAVING FILES========================='
-                file = open(args.etsid+".json", "w")
+                file = open(etsid+".json", "w")
                 file.write(json.dumps(emf_PresetSettings,indent=4, sort_keys=False))
                 file.close()
     	print '====================THUMBNAILS====================='
@@ -896,7 +887,7 @@ else:
     	if s_video is not 'none':
 		print json.dumps(emf_PresetThumbnails,indent=4, sort_keys=False)
 		if args.save == True:
-                        file = open(args.etsid+"_Thumbnail.json", "w")
+                        file = open(etsid+"_Thumbnail.json", "w")
                         file.write(json.dumps(emf_PresetThumbnails,indent=4, sort_keys=False))
                         file.close()
 ##### To Do: ####
