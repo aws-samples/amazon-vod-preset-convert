@@ -815,10 +815,10 @@ def translate_thumbnails(ets_preset_payload, etsid):
 
 	##Handle Auto Resolution
 	if ets_preset_payload['Preset']['Video']['MaxWidth'] !=  'auto':
-		emf_preset_thumbnail['Settings']['VideoDescription'].update({"Width" : int(ets_preset_payloadets_preset_payload['Preset']['Thumbnails']['MaxWidth'])})
+		emf_preset_thumbnail['Settings']['VideoDescription'].update({"Width" : int(ets_preset_payload['Preset']['Thumbnails']['MaxWidth'])})
 
 	if ets_preset_payload['Preset']['Video']['MaxHeight'] !=  'auto':
-		emf_preset_thumbnail['Settings']['VideoDescription'].update({"Height" : int(ets_preset_payloadets_preset_payload['Preset']['Thumbnails']['MaxHeight'])})	
+		emf_preset_thumbnail['Settings']['VideoDescription'].update({"Height" : int(ets_preset_payload['Preset']['Thumbnails']['MaxHeight'])})	
 	
 	return emf_preset_thumbnail 
 
