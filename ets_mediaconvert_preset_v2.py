@@ -201,9 +201,9 @@ def translate_audio(ets_preset_payload,s_audio):
         if ets_channel_num == '"2"':
             audio_coding = "CODING_MODE_2_0"
         elif ets_channel_num == '"1"':
-            audio_coding == "CODING_MODE_1_0"
+            audio_coding = "CODING_MODE_1_0"
         else:
-            audio_coding == "CODING_MODE_2_0"
+            audio_coding = "CODING_MODE_2_0"
         
         emf_bitrate = str(min(aac_range, key=lambda x:abs(x-ets_audio_bitrate)))       
         emf_bitrate = long(emf_bitrate) * 1000 
